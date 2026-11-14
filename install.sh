@@ -1,8 +1,8 @@
 #!/bin/sh
-# SmartDNS Manager public bootstrap. SPDX-License-Identifier: GPL-3.0-or-later
+# SmartDNS Manager public bootstrap. SPDX-License-Identifier: MIT
 set -eu
 PATH=/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH
-VERSION=0.3.2
+VERSION=0.4.0
 REPO=shurshick/SmartDNS_Manager
 check=0
 case "${1:-}" in --check) check=1; shift;; --help|-h) echo 'sh install.sh [--check] [LAN_IPV4]; SDM_LAN_IP overrides LAN detection'; exit 0;; esac
@@ -25,14 +25,14 @@ esac
 name=smartdns-manager-v$VERSION-$platform-$arch.tar.gz
 # Checksums are pinned in this installer, not trusted from an unchecked package.
 expected=$(case "$platform-$arch" in
- keenetic-arm64) echo 'b0ac51cfb76f650ac177ccc48d6e28457a19f4bf9d8889b5efdcffdcdd100603';;
- keenetic-mips) echo '8f7a10b9d5efb6b6be3dd11d107cd64778c27e5d5d7904661f41bf1184b6de67';;
- keenetic-mipsle) echo '69dddc2eefdf49452eebcb9f8e1f3fd6f2807f2e395828fb88a8569099855f7e';;
- openwrt-amd64) echo '0cd5dc638e89f81770261507f8e0c66ec5818a6dca800479ff61c9e44facc94c';;
- openwrt-arm64) echo '93a3269f02c3e15db98079641cf7d851cb91817b4f9c53f8976f693694341946';;
- openwrt-armv7) echo '8ac5c07da83791d29053127491e10fe5cc415138f99fa8717e21fa9195a3c990';;
- openwrt-mips) echo '843a6ef45bc081ae0b518e959ef66f5642116a53a5f59191a7fd4ece6c2928ad';;
- openwrt-mipsle) echo '3d37cea579155c7cbd6db1f1618e73d73f4056e088099af05bd1860c8b8ae333';;
+ keenetic-arm64) echo '99ede4b60bf96cd49561a1f99dba5b79a0dd6e42a6b15490a9b067f1c541d1af';;
+ keenetic-mips) echo 'dbb56ba2257d2b76322b73d7bb0a952657e9b9576865dd46c39bdf4ff27337c6';;
+ keenetic-mipsle) echo 'eb4400a854d85394f2693b4edcdc891d20899ffa9cc3968ace877886d151ae2e';;
+ openwrt-amd64) echo '3d8a181a7efd41a62d540a7cd9bcf4bde4cc4339d34adf549f73e066ade97b32';;
+ openwrt-arm64) echo '01dffbf658675a4953ab9320ff9b4e805c51146c5f1cdd19512dd71b3056d6eb';;
+ openwrt-armv7) echo '8841b49685ee61a6f0190b8b268524953f988bdc2fbe7a8e5cdb11a9968a8dbb';;
+ openwrt-mips) echo 'db55fb902c22f82e22d4e97243bd6df10965ca72cc0b8bb36d714da674674c7d';;
+ openwrt-mipsle) echo 'e6eaac9dbb645a8c067d0180338e757a543b7a02ee6804fa9cbdd9f1e31bcfa6';;
  *) die 'для этой платформы и архитектуры нет сборки';;
 esac)
 temp=$(mktemp -d /tmp/smartdns-online.XXXXXX) || exit 1
