@@ -5,13 +5,56 @@ PATH=/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH
 VERSION=0.4.0
 REPO=shurshick/SmartDNS_Manager
 check=0
-case "${1:-}" in --check) check=1; shift;; --help|-h) echo 'sh install.sh [--check] [LAN_IPV4]; SDM_LAN_IP overrides LAN detection'; exit 0;; esac
-[ "$#" -le 1 ] || { echo 'Укажите только LAN IPv4 или --check' >&2; exit 2; }
+action=install
+case "${1:-}" in
+ --check) check=1; shift;;
+ --update) action=update; shift;;
+ --uninstall) action=uninstall; shift;;
+ --help|-h) echo 'sh install.sh [--check|--update|--uninstall] [LAN_IPV4]; SDM_LAN_IP overrides LAN detection'; exit 0;;
+esac
+[ "$#" -le 1 ] || { echo 'Укажите одно действие и необязательный LAN IPv4' >&2; exit 2; }
 die() { echo "SmartDNS Manager: $*" >&2; exit 1; }
-for cmd in curl sha256sum tar mktemp awk uname; do command -v "$cmd" >/dev/null 2>&1 || die "нужна команда $cmd"; done
+case "${1:-}" in -*) die 'неизвестное действие; используйте --help';; esac
+for cmd in awk uname; do command -v "$cmd" >/dev/null 2>&1 || die "нужна команда $cmd"; done
 if [ -f /etc/openwrt_release ]; then platform=openwrt
 elif [ -f /opt/etc/init.d/rc.func ]; then platform=keenetic
 else die 'нужен OpenWrt или Keenetic/Netcraze с уже установленным Entware'; fi
+if [ "$platform" = keenetic ]; then
+ owner=/opt/var/lib/smartdns-manager-install/owner.json
+ runtime=/opt/sbin/smartdns-manager
+else
+ owner=/etc/smartdns-manager-install/owner.json
+ runtime=/usr/sbin/smartdns-manager
+fi
+resolve_lan() {
+ lan=${SDM_LAN_IP:-${1:-}}
+ if [ -z "$lan" ] && [ -f /opt/var/lib/smartdns-manager-install/owner.json ]; then
+  lan=$(awk '$1=="listen" {split($2,a,":"); print a[1]; exit}' /opt/etc/doqd.conf)
+ fi
+ if [ -z "$lan" ] && command -v ip >/dev/null 2>&1; then
+  for dev in br0 br-lan; do
+   lan=$(ip -4 addr show dev "$dev" 2>/dev/null | awk '$1=="inet" {split($2,a,"/"); print a[1]; exit}')
+   [ -z "$lan" ] || break
+  done
+ fi
+ echo "$lan" | awk -F. 'NF!=4{exit 1} {for(i=1;i<=4;i++)if($i!~/^[0-9]+$/||$i>255)exit 1; if($1==0||$1==127)exit 1}' || die 'не определён LAN IPv4; повторите с SDM_LAN_IP=192.168.1.1 перед sh'
+}
+if [ "$action" = uninstall ]; then
+ [ "$(id -u)" = 0 ] || die 'запустите удаление от root'
+ [ -f "$owner" ] && [ -x "$runtime" ] || die 'собственный установленный менеджер не найден'
+ echo 'Полное удаление SmartDNS Manager: службы, бинарник, конфиг, HOSTS, кэши и резервные копии менеджера.'
+ if [ "$platform" = keenetic ]; then
+  resolve_lan "$@"
+  exec "$runtime" uninstall --platform keenetic --lan-ip "$lan" --yes
+ else
+  [ "$#" = 0 ] || die 'для OpenWrt LAN IPv4 не нужен'
+  exec "$runtime" uninstall --platform openwrt --yes
+ fi
+fi
+if [ "$action" = update ]; then
+ [ -f "$owner" ] || die 'установка не найдена: для чистой установки запустите без --update'
+fi
+for cmd in curl sha256sum tar mktemp; do command -v "$cmd" >/dev/null 2>&1 || die "нужна команда $cmd"; done
 case "$(uname -m)" in
  aarch64|arm64) arch=arm64;;
  armv7l|armv7*) arch=armv7;;
@@ -51,17 +94,7 @@ tar -xzf "$temp/package.tar.gz" -C "$temp/package" || die 'не распаков
 if [ "$check" = 1 ]; then echo 'Пакет проверен. Службы и настройки не изменялись.'; exit 0; fi
 [ "$(id -u)" = 0 ] || die 'запустите установку от root'
 if [ "$platform" = keenetic ]; then
- lan=${SDM_LAN_IP:-${1:-}}
- if [ -z "$lan" ] && [ -f /opt/var/lib/smartdns-manager-install/owner.json ]; then
-  lan=$(awk '$1=="listen" {split($2,a,":"); print a[1]; exit}' /opt/etc/doqd.conf)
- fi
- if [ -z "$lan" ] && command -v ip >/dev/null 2>&1; then
-  for dev in br0 br-lan; do
-   lan=$(ip -4 addr show dev "$dev" 2>/dev/null | awk '$1=="inet" {split($2,a,"/"); print a[1]; exit}')
-   [ -z "$lan" ] || break
-  done
- fi
- echo "$lan" | awk -F. 'NF!=4{exit 1} {for(i=1;i<=4;i++)if($i!~/^[0-9]+$/||$i>255)exit 1; if($1==0||$1==127)exit 1}' || die 'не определён LAN IPv4; повторите с SDM_LAN_IP=192.168.1.1 перед sh'
+ resolve_lan "$@"
  sh "$temp/package/install.sh" --lan-ip "$lan"
  echo "Панель: http://$lan:8092/"
 else
