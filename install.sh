@@ -102,3 +102,6 @@ else
  sh "$temp/package/install.sh"
  echo 'Панель: http://LAN_IP_РОУТЕРА:8092/'
 fi
+installed=$("$runtime" -version) || die 'не удалось проверить установленный бинарник'
+[ "$installed" = "SmartDNS Manager $VERSION" ] || die "установленная версия не совпадает с пакетом: $installed"
+echo "Установлено: $installed"

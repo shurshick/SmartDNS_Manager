@@ -10,7 +10,7 @@
 Одинаковая команда для обеих платформ. Выполните от **root в SSH-терминале роутера**:
 
 ```sh
-(f=$(mktemp) && curl -fLsS --connect-timeout 15 --max-time 120 https://raw.githubusercontent.com/shurshick/SmartDNS_Manager/main/install.sh -o "$f" && sh "$f"; r=$?; [ -z "${f:-}" ] || rm -f "$f"; exit "$r")
+(f=$(mktemp) && curl -fLsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/shurshick/SmartDNS_Manager/main/install.sh?t=$(date +%s)" -o "$f" && sh "$f"; r=$?; [ -z "${f:-}" ] || rm -f "$f"; exit "$r")
 ```
 
 Установщик сам определит платформу, архитектуру и LAN IPv4 на Keenetic, скачает готовый пакет из GitHub Releases, сверит закреплённый SHA-256 и внутренние файлы. Затем штатный установщик проверит место и DNS, сохранит аварийную копию, запустит службы и проверит результат. При ошибке выполняется откат. **Сторонние DNS-пакеты не удаляются и не перезаписываются.**
@@ -22,7 +22,7 @@
 - Keenetic / Netcraze: заранее установленный Entware, SSH обычно на порту 222. Используйте его shell, а не вложенный `exec sh` из CLI Keenetic.
 - OpenWrt: штатные dnsmasq, UCI и procd; Entware не нужен.
 - Нужны `curl`, рабочие корневые сертификаты, `sha256sum`, `tar`, доступ к GitHub и правильное время на роутере. Установка Entware и системных пакетов в команду не входит.
-- Ориентир — 32 МиБ свободного места в разделе установки и 32 МиБ в `/tmp`. Точный расчёт, включая резервную копию обновления, делает установщик; при нехватке он остановится до замены служб.
+- Онлайн загружается только пакет вашей платформы. Для ARM64 архив занимает около 3,5 МиБ; архив вместе с распаковкой — около 13 МиБ в `/tmp`, нужен дополнительный запас. В разделе установки проверяется размер нового бинарника, аварийной копии и 8 МиБ резерва. Отдельной предварительной проверки свободного места в `/tmp` пока нет.
 - Порты 5354 и 8092 должны быть доступны для новой установки. Существующий маршрут DNS не должен обходить локальный сервер через сторонние DoH/DoT-службы.
 
 Если LAN IPv4 Keenetic не определился, скачайте тот же `install.sh` и запустите `SDM_LAN_IP=192.168.1.1 sh install.sh`, подставив свой адрес.
@@ -30,7 +30,7 @@
 ### Проверка без установки
 
 ```sh
-(f=$(mktemp) && curl -fLsS --connect-timeout 15 --max-time 120 https://raw.githubusercontent.com/shurshick/SmartDNS_Manager/main/install.sh -o "$f" && sh "$f" --check; r=$?; [ -z "${f:-}" ] || rm -f "$f"; exit "$r")
+(f=$(mktemp) && curl -fLsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/shurshick/SmartDNS_Manager/main/install.sh?t=$(date +%s)" -o "$f" && sh "$f" --check; r=$?; [ -z "${f:-}" ] || rm -f "$f"; exit "$r")
 ```
 
 Пакет скачивается, проверяется и распаковывается в `/tmp`. Рабочие службы и настройки не меняются. Проверка не заменяет испытания конкретной модели и прошивки.
@@ -88,7 +88,7 @@ quic://doq.ffmuc.net
 Одинаково для Keenetic и OpenWrt, от root. Обновляется уже установленный менеджер до версии, закреплённой в установщике; настройки, HOSTS, источники, ручные правила и Gateway сохраняются. При отсутствии собственной установки команда остановится.
 
 ```sh
-(f=$(mktemp) && curl -fLsS --connect-timeout 15 --max-time 120 https://raw.githubusercontent.com/shurshick/SmartDNS_Manager/main/install.sh -o "$f" && sh "$f" --update; r=$?; [ -z "${f:-}" ] || rm -f "$f"; exit "$r")
+(f=$(mktemp) && curl -fLsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/shurshick/SmartDNS_Manager/main/install.sh?t=$(date +%s)" -o "$f" && sh "$f" --update; r=$?; [ -z "${f:-}" ] || rm -f "$f"; exit "$r")
 ```
 
 ## Полное удаление одной командой
@@ -96,7 +96,7 @@ quic://doq.ffmuc.net
 Сначала экспортируйте нужную копию из панели. На Keenetic сохранённые установщиком DHCP-параметры DNS восстанавливаются автоматически; если внешнего DNS не было, предварительно настройте рабочий DNS **вне SmartDNS Manager**. Команда удаляет обе службы, общий бинарник/ссылку, собственную регистрацию DNS, конфиги, HOSTS, источники, кэш и резервные копии внутри каталога менеджера. Чужие программы и внешние копии на ПК не затрагиваются. Если обычный DNS после снятия регистрации не работает, удалитель возвращает нашу регистрацию и сохраняет DNS-службу.
 
 ```sh
-(f=$(mktemp) && curl -fLsS --connect-timeout 15 --max-time 120 https://raw.githubusercontent.com/shurshick/SmartDNS_Manager/main/install.sh -o "$f" && sh "$f" --uninstall; r=$?; [ -z "${f:-}" ] || rm -f "$f"; exit "$r")
+(f=$(mktemp) && curl -fLsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/shurshick/SmartDNS_Manager/main/install.sh?t=$(date +%s)" -o "$f" && sh "$f" --uninstall; r=$?; [ -z "${f:-}" ] || rm -f "$f"; exit "$r")
 ```
 
 Архив новой сборки для удаления не скачивается — вызывается установленный менеджер. Если GitHub недоступен, используйте локальные команды ниже: им вообще не нужен интернет для скачивания установщика.
