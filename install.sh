@@ -2,17 +2,16 @@
 # SmartDNS Manager public bootstrap. SPDX-License-Identifier: MIT
 set -eu
 PATH=/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH
-VERSION=0.5.1
+VERSION=0.5.2
 REPO=shurshick/SmartDNS_Manager
 check=0
 action=install
 replace_dns=${SDM_REPLACE_DNS:-}
-restore_dns=0
 case "${1:-}" in
  --check) check=1; shift;;
  --update) action=update; shift;;
  --uninstall) action=uninstall; shift;;
- --help|-h) echo 'sh install.sh [--check|--update|--uninstall] [LAN_IPV4]; SDM_LAN_IP overrides LAN detection; SDM_REPLACE_DNS=IPv4 replaces a manual DNS on clean Keenetic installation'; exit 0;;
+ --help|-h) echo 'sh install.sh [--check|--update|--uninstall] [LAN_IPV4]; SDM_LAN_IP overrides LAN detection; SDM_REPLACE_DNS=auto (or IPv4) replaces manual DNS on clean Keenetic installation'; exit 0;;
 esac
 [ "$#" -le 1 ] || { echo 'Укажите одно действие и необязательный LAN IPv4' >&2; exit 2; }
 die() { echo "SmartDNS Manager: $*" >&2; exit 1; }
@@ -24,9 +23,11 @@ else die 'нужен OpenWrt или Keenetic/Netcraze с уже установл
 if [ -n "$replace_dns" ]; then
  [ "$platform" = keenetic ] && [ "$action" = install ] && [ "$check" = 0 ] ||
   die 'SDM_REPLACE_DNS поддерживается только при чистой установке на Keenetic'
- case "$replace_dns" in *[!0-9.]*) die 'SDM_REPLACE_DNS должен быть IPv4-адресом';; esac
- printf '%s\n' "$replace_dns" | awk -F. 'NF!=4{exit 1} {for(i=1;i<=4;i++)if($i!~/^(0|[1-9][0-9]?[0-9]?)$/||$i>255)exit 1}' ||
-  die 'SDM_REPLACE_DNS должен быть IPv4-адресом'
+ if [ "$replace_dns" != auto ]; then
+  case "$replace_dns" in *[!0-9.]*) die 'SDM_REPLACE_DNS должен быть auto или IPv4-адресом';; esac
+  printf '%s\n' "$replace_dns" | awk -F. 'NF!=4{exit 1} {for(i=1;i<=4;i++)if($i!~/^(0|[1-9][0-9]?[0-9]?)$/||$i>255)exit 1}' ||
+   die 'SDM_REPLACE_DNS должен быть auto или IPv4-адресом'
+ fi
 fi
 if [ "$platform" = keenetic ]; then
  owner=/opt/var/lib/smartdns-manager-install/owner.json
@@ -38,39 +39,6 @@ fi
 if [ -n "$replace_dns" ] && [ -f "$owner" ]; then
  die 'менеджер уже установлен; для обновления используйте --update без SDM_REPLACE_DNS'
 fi
-keenetic_cli() {
- output=$(/bin/ndmc -c "$1") || { printf '%s\n' "$output" >&2; return 1; }
- if printf '%s\n' "$output" | awk 'tolower($0) ~ /failed|error|not found/ {found=1} END{exit !found}'; then
-  printf '%s\n' "$output" >&2
-  return 1
- fi
- printf '%s\n' "$output"
-}
-manual_dns_present() {
- awk -v ip="$replace_dns" '
- function check() {if (address==ip && service=="Dns::Manager" && domain=="" && iface=="" && (port=="" || port=="53")) found=1}
- /^[[:space:]]*server:/ {check(); address=service=domain=iface=port=""}
- $1=="address:" {address=$2}
- $1=="port:" {port=$2}
- $1=="service:" {service=$2}
- $1=="domain:" {domain=$2}
- $1=="interface:" {iface=$2}
- END {check(); exit !found}'
-}
-cleanup() {
- rc=$?
- if [ "$restore_dns" = 1 ]; then
-  if ! servers=$(keenetic_cli 'show ip name-server') || ! printf '%s\n' "$servers" | manual_dns_present; then
-   if keenetic_cli "ip name-server $replace_dns" && keenetic_cli 'system configuration save'; then
-    echo "Восстановлен исходный DNS: $replace_dns" >&2
-   else
-    echo "Не удалось восстановить $replace_dns. Верните запись через CLI Keenetic." >&2
-   fi
-  fi
- fi
- rm -rf -- "$temp"
- exit "$rc"
-}
 resolve_lan() {
  lan=${SDM_LAN_IP:-${1:-}}
  if [ -z "$lan" ] && [ -f /opt/var/lib/smartdns-manager-install/owner.json ]; then
@@ -113,18 +81,18 @@ esac
 name=smartdns-manager-v$VERSION-$platform-$arch.tar.gz
 # Checksums are pinned in this installer, not trusted from an unchecked package.
 expected=$(case "$platform-$arch" in
- keenetic-arm64) echo '9347cc9401fea3a1bfcca9a6c0a388862c519aadc3739bd3a1740e1d808dc122';;
- keenetic-mips) echo 'c8001578fd15f00495a9869b4958324f20120b869de82bcc28a875ebd1c22f7d';;
- keenetic-mipsle) echo 'c031b9d635bf8c25c29ae1e4713c3fad443bc59b6e563f2dfb59bc63b7812e52';;
- openwrt-amd64) echo 'ccc558d6d19fa43a6b76260e0f06044a1014e2ae8bdd6564388992fb326c31d1';;
- openwrt-arm64) echo 'c43c35fcc6c308aaad03d8f07be46a3ec0649e54039ca45d214d6548393c039d';;
- openwrt-armv7) echo '4d33b59d909c525b6aa03a9f6a1b6eec62f4436bea7daf0579f314bcfb226cd5';;
- openwrt-mips) echo '8a51d44e1d9018091dcd7658d2c29d2af7e1e5bfc255dfd2c5bd3e42d1651168';;
- openwrt-mipsle) echo '968326ef7ca58244adc6fa92687b3fbb45a25938801021187d54df879b657f67';;
+ keenetic-arm64) echo '837431e9edc69f133c79c6b576cb381906d470aeff511193e884c980be6488a6';;
+ keenetic-mips) echo 'dadfbded49605e66d284d036236c7ce235b36f52bc0a98ad999ef6aa5a8e849d';;
+ keenetic-mipsle) echo 'dc92606e0f028becc184b9abdd82e0c35e32da962734fd2d71515adfbded4cf0';;
+ openwrt-amd64) echo '689dc07e13e1530d71b0d3feccd599a6e88ebb7f2b3e11ec0a707ecd6550108e';;
+ openwrt-arm64) echo 'e1121993f85c2c835665145d8ab5e67c338ab1fe4b1c9b0f458f789686b394a0';;
+ openwrt-armv7) echo '283ab9e46f0cb53ee7673e0fad721ac742631f1b630ede92a82a35366f13b7f6';;
+ openwrt-mips) echo 'da2c3db86a60c07616833e013be6e41ba54201d36e593c8e623c5fd51575529f';;
+ openwrt-mipsle) echo '99f6123fc59d877f357899858ccfddc66efa5970aa9adbcc803df38999cfba5f';;
  *) die 'для этой платформы и архитектуры нет сборки';;
 esac)
 temp=$(mktemp -d /tmp/smartdns-online.XXXXXX) || exit 1
-trap cleanup EXIT
+trap 'rm -rf -- "$temp"' EXIT
 trap 'exit 1' HUP INT TERM
 url=https://github.com/$REPO/releases/download/v$VERSION/$name
 echo "SmartDNS Manager $VERSION: $platform / $arch"
@@ -141,12 +109,7 @@ if [ "$check" = 1 ]; then echo 'Пакет проверен. Службы и н�
 if [ "$platform" = keenetic ]; then
  resolve_lan "$@"
  if [ -n "$replace_dns" ]; then
-  servers=$(keenetic_cli 'show ip name-server') || die 'не удалось прочитать список DNS Keenetic'
-  printf '%s\n' "$servers" | manual_dns_present ||
-   die "$replace_dns не найден среди глобальных ручных DNS Keenetic"
-  restore_dns=1
   sh "$temp/package/install.sh" --lan-ip "$lan" --remove-temporary-dns "$replace_dns"
-  restore_dns=0
  else
   sh "$temp/package/install.sh" --lan-ip "$lan" ||
    die 'установка не завершена; при конфликте с ручным DNS см. SDM_REPLACE_DNS в README'
