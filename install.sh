@@ -6,11 +6,13 @@ VERSION=0.5.1
 REPO=shurshick/SmartDNS_Manager
 check=0
 action=install
+replace_dns=${SDM_REPLACE_DNS:-}
+restore_dns=0
 case "${1:-}" in
  --check) check=1; shift;;
  --update) action=update; shift;;
  --uninstall) action=uninstall; shift;;
- --help|-h) echo 'sh install.sh [--check|--update|--uninstall] [LAN_IPV4]; SDM_LAN_IP overrides LAN detection'; exit 0;;
+ --help|-h) echo 'sh install.sh [--check|--update|--uninstall] [LAN_IPV4]; SDM_LAN_IP overrides LAN detection; SDM_REPLACE_DNS=IPv4 replaces a manual DNS on clean Keenetic installation'; exit 0;;
 esac
 [ "$#" -le 1 ] || { echo 'Укажите одно действие и необязательный LAN IPv4' >&2; exit 2; }
 die() { echo "SmartDNS Manager: $*" >&2; exit 1; }
@@ -19,6 +21,13 @@ for cmd in awk uname; do command -v "$cmd" >/dev/null 2>&1 || die "нужна к
 if [ -f /etc/openwrt_release ]; then platform=openwrt
 elif [ -f /opt/etc/init.d/rc.func ]; then platform=keenetic
 else die 'нужен OpenWrt или Keenetic/Netcraze с уже установленным Entware'; fi
+if [ -n "$replace_dns" ]; then
+ [ "$platform" = keenetic ] && [ "$action" = install ] && [ "$check" = 0 ] ||
+  die 'SDM_REPLACE_DNS поддерживается только при чистой установке на Keenetic'
+ case "$replace_dns" in *[!0-9.]*) die 'SDM_REPLACE_DNS должен быть IPv4-адресом';; esac
+ printf '%s\n' "$replace_dns" | awk -F. 'NF!=4{exit 1} {for(i=1;i<=4;i++)if($i!~/^(0|[1-9][0-9]?[0-9]?)$/||$i>255)exit 1}' ||
+  die 'SDM_REPLACE_DNS должен быть IPv4-адресом'
+fi
 if [ "$platform" = keenetic ]; then
  owner=/opt/var/lib/smartdns-manager-install/owner.json
  runtime=/opt/sbin/smartdns-manager
@@ -26,6 +35,42 @@ else
  owner=/etc/smartdns-manager-install/owner.json
  runtime=/usr/sbin/smartdns-manager
 fi
+if [ -n "$replace_dns" ] && [ -f "$owner" ]; then
+ die 'менеджер уже установлен; для обновления используйте --update без SDM_REPLACE_DNS'
+fi
+keenetic_cli() {
+ output=$(/bin/ndmc -c "$1") || { printf '%s\n' "$output" >&2; return 1; }
+ if printf '%s\n' "$output" | awk 'tolower($0) ~ /failed|error|not found/ {found=1} END{exit !found}'; then
+  printf '%s\n' "$output" >&2
+  return 1
+ fi
+ printf '%s\n' "$output"
+}
+manual_dns_present() {
+ awk -v ip="$replace_dns" '
+ function check() {if (address==ip && service=="Dns::Manager" && domain=="" && iface=="" && (port=="" || port=="53")) found=1}
+ /^[[:space:]]*server:/ {check(); address=service=domain=iface=port=""}
+ $1=="address:" {address=$2}
+ $1=="port:" {port=$2}
+ $1=="service:" {service=$2}
+ $1=="domain:" {domain=$2}
+ $1=="interface:" {iface=$2}
+ END {check(); exit !found}'
+}
+cleanup() {
+ rc=$?
+ if [ "$restore_dns" = 1 ]; then
+  if ! servers=$(keenetic_cli 'show ip name-server') || ! printf '%s\n' "$servers" | manual_dns_present; then
+   if keenetic_cli "ip name-server $replace_dns" && keenetic_cli 'system configuration save'; then
+    echo "Восстановлен исходный DNS: $replace_dns" >&2
+   else
+    echo "Не удалось восстановить $replace_dns. Верните запись через CLI Keenetic." >&2
+   fi
+  fi
+ fi
+ rm -rf -- "$temp"
+ exit "$rc"
+}
 resolve_lan() {
  lan=${SDM_LAN_IP:-${1:-}}
  if [ -z "$lan" ] && [ -f /opt/var/lib/smartdns-manager-install/owner.json ]; then
@@ -79,7 +124,7 @@ expected=$(case "$platform-$arch" in
  *) die 'для этой платформы и архитектуры нет сборки';;
 esac)
 temp=$(mktemp -d /tmp/smartdns-online.XXXXXX) || exit 1
-trap 'rm -rf -- "$temp"' EXIT
+trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
 url=https://github.com/$REPO/releases/download/v$VERSION/$name
 echo "SmartDNS Manager $VERSION: $platform / $arch"
@@ -95,7 +140,17 @@ if [ "$check" = 1 ]; then echo 'Пакет проверен. Службы и н�
 [ "$(id -u)" = 0 ] || die 'запустите установку от root'
 if [ "$platform" = keenetic ]; then
  resolve_lan "$@"
- sh "$temp/package/install.sh" --lan-ip "$lan"
+ if [ -n "$replace_dns" ]; then
+  servers=$(keenetic_cli 'show ip name-server') || die 'не удалось прочитать список DNS Keenetic'
+  printf '%s\n' "$servers" | manual_dns_present ||
+   die "$replace_dns не найден среди глобальных ручных DNS Keenetic"
+  restore_dns=1
+  sh "$temp/package/install.sh" --lan-ip "$lan" --remove-temporary-dns "$replace_dns"
+  restore_dns=0
+ else
+  sh "$temp/package/install.sh" --lan-ip "$lan" ||
+   die 'установка не завершена; при конфликте с ручным DNS см. SDM_REPLACE_DNS в README'
+ fi
  echo "Панель: http://$lan:8092/"
 else
  [ "$#" = 0 ] || die 'для OpenWrt LAN IPv4 указывать не нужно'
