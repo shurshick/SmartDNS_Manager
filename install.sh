@@ -2,7 +2,7 @@
 # SmartDNS Manager public bootstrap. SPDX-License-Identifier: MIT
 set -eu
 PATH=/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH
-VERSION=0.5.3
+VERSION=0.5.4
 REPO=shurshick/SmartDNS_Manager
 check=0
 action=install
@@ -81,14 +81,14 @@ esac
 name=smartdns-manager-v$VERSION-$platform-$arch.tar.gz
 # Checksums are pinned in this installer, not trusted from an unchecked package.
 expected=$(case "$platform-$arch" in
- keenetic-arm64) echo '9ff18c6f3ba40e75ea021e63496a3d70f661957b9d9f8fc5ef4ac59bed020c82';;
- keenetic-mips) echo '58ba9a7a5d22d6882d415445bb5602f5a9a3a44e042d0e69469fa5428fca446f';;
- keenetic-mipsle) echo 'dccb039f3c7c204102e6834efc8445489c5b8b5f0c693b8b7840fedafbfce4b4';;
- openwrt-amd64) echo '030be808ebb449039dfe3aaa3180e5425dec6ec960bbf4428359db19d9eaccb3';;
- openwrt-arm64) echo 'f215a2e03fb20dbc3c60ef1926fdedd542eb4e3e9c31678709144c81ecfddffe';;
- openwrt-armv7) echo '524f73db4d1c536819eb7d8967b32493d8d61548dc51691bb5ccf9bf87b15a9f';;
- openwrt-mips) echo 'ad1a98fea1a69b0c3e93af2d9e95e44ff51a50525ef14b4b2caedfe68e06654f';;
- openwrt-mipsle) echo 'f7e2530143ead15f9f2a7a67b77399c65701f557a0b3fe4c8fc744bb8e38b6a7';;
+ keenetic-arm64) echo '33b02873359709e033755936f3a802ee2d4751c4c95150b66be06ef2bb1e55c3';;
+ keenetic-mips) echo 'ba2f554c63e5f1147a3bf7164d37cc83d2b59643c7f3ac596126ccf4e7910024';;
+ keenetic-mipsle) echo '25a91834489dda064afe4e7ff54046c880280d4fb4a4ad25c34a7dac8f333029';;
+ openwrt-amd64) echo 'd947cc25aa7b389da4fceff303ddb1181aaaac7f6f28cfbe6be41af9ef70823b';;
+ openwrt-arm64) echo '624477249420cb0783a130b4ba50e5a281a8700fcaf43cf9d87ccf5b41832f11';;
+ openwrt-armv7) echo '1f4141d753039211facb94660b5638fd88c8ea9dac5f4cee4acf2624929e43de';;
+ openwrt-mips) echo '4769bdd9bf2fd91a0f7603fb5feb4ee2f85c305563862b8f6892587aa9a39c00';;
+ openwrt-mipsle) echo 'c1c03aaa64c6de28e6791abb06dbcecebca4c2c786ad68e44e1f5fb0ff175b28';;
  *) die 'для этой платформы и архитектуры нет сборки';;
 esac)
 temp=$(mktemp -d /tmp/smartdns-online.XXXXXX) || exit 1
