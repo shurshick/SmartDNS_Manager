@@ -2,7 +2,7 @@
 # SmartDNS Manager clean installer. SPDX-License-Identifier: MIT
 set -eu
 PATH=/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH
-VERSION=0.6.0
+VERSION=0.6.1
 REPO=shurshick/SmartDNS_Manager
 action=install
 case "${1:-}" in
@@ -51,14 +51,14 @@ case "$(uname -m)" in
  *) die 'процессор не поддерживается';;
 esac
 expected=$(case "$platform-$arch" in
- keenetic-arm64) echo '51558a18ea826a047a6d237dcc48a9207322fb402e818ba213c2c9adf8725d3f';;
- keenetic-mips) echo '722621e94b918491aa1675d230a5c0605676c9a20b2e32270b9770d40cd916c8';;
- keenetic-mipsle) echo 'c0c3cb9ff5e66ce0f4dbc7c0c2f156dc0b146d7f9de4f6613ca6fb1cdaef8c87';;
- openwrt-amd64) echo '9f8eb9ee79ece0fe4925f444a5632f82418a31a9209d94cc60c5bf1111f61dca';;
- openwrt-arm64) echo '87b1408aeca9ea8ca2eeeb2b31c9ac5c6fd301b62cc804c067de1e799cd90f18';;
- openwrt-armv7) echo 'c09446d27d198642083b5013d6903436abf25e80db524691b5038036274113e0';;
- openwrt-mips) echo 'f78640df15704794c453696566318fe5d23bd80f925fec0485e71fb88e8d87c9';;
- openwrt-mipsle) echo 'd9fcf3c8537a88484a5844a3db432e56106c0163f044ace451d1ecefec22d47c';;
+ keenetic-arm64) echo '89e669745222c29ba60275347dea09188da8818da3e87ce45d063fb128ca95d6';;
+ keenetic-mips) echo 'ce6f1f6098c7f3bf657d4e46e52354aebc127964907b17261b3a0f67d796b857';;
+ keenetic-mipsle) echo '67321fb69f764667c5dd6bb2041886d62bf6a3619a29f09a14bb6e9095b1609e';;
+ openwrt-amd64) echo '4a7aa8ddd4cab7a07afee5ee9e56094369658e63f23a10fa07a2f92b877d0eb8';;
+ openwrt-arm64) echo '09a99fcddda5c9b852c239cae81762ffdd7ec9b76c2d20b4e2d6af9f556afeb9';;
+ openwrt-armv7) echo '13b748ad916f4baba5336d5d7c299c6784492abab1004bc4eecced559d6f1090';;
+ openwrt-mips) echo '074a6c2e3d1d72ece018f2a0b590f2f36b4b4bd66729facc7890e64a4e9ed150';;
+ openwrt-mipsle) echo 'efca49f39b7f5c19229b26a44da3ae7162b6181b15facca4037105b50c9a29c5';;
  *) die 'для этой платформы и архитектуры нет пакета';;
 esac)
 lan=${SDM_LAN_IP:-${1:-}}
