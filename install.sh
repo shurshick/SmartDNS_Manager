@@ -21,6 +21,18 @@ else die 'нужен OpenWrt или Keenetic / Netcraze с установлен�
 if [ "$action" = uninstall ]; then
  [ "$(id -u)" = 0 ] || die 'запустите от root'
  [ -f "$owner" ] && [ -x "$runtime" ] || die 'установленный менеджер не найден'
+ if [ "$platform" = keenetic ]; then
+  lan=${SDM_LAN_IP:-${1:-}}
+  if [ -z "$lan" ]; then
+   for config in /opt/etc/smartdns.conf /opt/etc/doqd.conf; do
+    [ -f "$config" ] || continue
+    lan=$(awk '$1=="listen" {split($2,a,":"); print a[1]; exit}' "$config")
+    [ -z "$lan" ] || break
+   done
+  fi
+  printf '%s\n' "$lan" | awk -F. 'NF!=4{exit 1} {for(i=1;i<=4;i++)if($i!~/^[0-9]+$/||$i>255)exit 1; if($1==0||$1==127)exit 1}' || die 'для удаления укажите SDM_LAN_IP с LAN IPv4 роутера'
+  exec "$runtime" uninstall --platform keenetic --lan-ip "$lan" --yes
+ fi
  exec "$runtime" uninstall --yes
 fi
 if [ "$action" = install ]; then
