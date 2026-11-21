@@ -1,14 +1,15 @@
 #!/bin/sh
-# SmartDNS Manager clean installer. SPDX-License-Identifier: MIT
+# SmartDNS Manager installer. SPDX-License-Identifier: MIT
 set -eu
 PATH=/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH
-VERSION=0.6.3
+VERSION=0.6.4
 REPO=shurshick/SmartDNS_Manager
 action=install
 case "${1:-}" in
  --check) action=check; shift;;
+ --update) action=update; shift;;
  --uninstall) action=uninstall; shift;;
- --help|-h) echo 'sh install.sh [--check|--uninstall] [LAN_IPV4]; SDM_LAN_IP selects the Keenetic LAN address'; exit 0;;
+ --help|-h) echo 'sh install.sh [--check|--update|--uninstall] [LAN_IPV4]; SDM_LAN_IP selects the Keenetic LAN address'; exit 0;;
 esac
 die() { echo "SmartDNS Manager: $*" >&2; exit 1; }
 [ "$#" -le 1 ] || die 'укажите одно действие и необязательный LAN IPv4'
@@ -37,7 +38,12 @@ if [ "$action" = uninstall ]; then
 fi
 if [ "$action" = install ]; then
  [ "$(id -u)" = 0 ] || die 'запустите от root'
- [ ! -e "$owner" ] && [ ! -e "$runtime" ] || die 'менеджер уже установлен; сначала выполните полное удаление (настройки будут удалены)'
+ [ ! -e "$owner" ] && [ ! -e "$runtime" ] || die 'менеджер уже установлен; для обновления используйте --update'
+fi
+if [ "$action" = update ]; then
+ [ "$#" = 0 ] || die 'обновление использует текущий LAN IPv4'
+ [ "$(id -u)" = 0 ] || die 'запустите от root'
+ [ -f "$owner" ] && [ -x "$runtime" ] || die 'установленный менеджер не найден'
 fi
 for cmd in awk uname curl sha256sum tar mktemp df; do command -v "$cmd" >/dev/null 2>&1 || die "нужна команда $cmd"; done
 case "$(uname -m)" in
@@ -51,14 +57,14 @@ case "$(uname -m)" in
  *) die 'процессор не поддерживается';;
 esac
 expected=$(case "$platform-$arch" in
- keenetic-arm64) echo '4967f8d63549cde62c54838dfd59112228a531119ceba27b3786a8d9ca6b8da5';;
- keenetic-mips) echo '29630caf5d4ae2c51263e0d054dffdd51f2fd80117bd71e8a9c2fa59fb01eafe';;
- keenetic-mipsle) echo 'f8c0a199e82259c9c8bab21c50bce503fa6944452dab76391f05779487c795ab';;
- openwrt-amd64) echo 'ce37a0c0debe824a7db02eb28d2470c1178beef068968db7c49e4e625028e9d1';;
- openwrt-arm64) echo '53326b6a6bb2ab26f51766ca85d9db9ed831d4e4fdf4844f39119d5611e3847f';;
- openwrt-armv7) echo 'eb0ddbeebdb2f46135813d16df75d3fcb0f5693d5ccf7d75ec2bcabcaaa4fe8c';;
- openwrt-mips) echo 'b551450db191a34d86539ce42d433bd5a569b35cc42dcf864d4bfaaccbcd4818';;
- openwrt-mipsle) echo '639f50e0337d78f4024161e7c795605495e2b422a8eddc9bb6ad03550b4d5846';;
+ keenetic-arm64) echo '9146e7af0aefd71f589a88214f6fef93b1cd76ee843fe27657900096ac6e21cc';;
+ keenetic-mips) echo '279740eb2fc7a2b11d03349bb17a451441511da9197ca7ef72311b70d1b51c05';;
+ keenetic-mipsle) echo '718b1d42659cb0927dc868888e1d854e831889b9229a4a3f2912cd2de211a0fc';;
+ openwrt-amd64) echo 'f59a85e14a30c4567f19bebd9ef965181e53ccd7ece720d356e262f5f3fbfc39';;
+ openwrt-arm64) echo '45b70e2aa69181c0d7639d6631ff77e12a1267494e8b9d29f0b057a46a748b19';;
+ openwrt-armv7) echo 'dd9983cff393511507fbd0f195551dc1dc4b4dc8e72fe24d5cd16f0a3370f487';;
+ openwrt-mips) echo '8d13a6fb75c62ea432e809c699020e605744c9b71de13cd60a7d61d7e3b959a1';;
+ openwrt-mipsle) echo '2f7ac1710ac015fa53e223308610841ca5f05a6ac12397a1350deb55d2b50c5a';;
  *) die 'для этой платформы и архитектуры нет пакета';;
 esac)
 lan=${SDM_LAN_IP:-${1:-}}
@@ -92,7 +98,9 @@ tar -xzf "$temp/package.tar.gz" -C "$temp/package" || die 'пакет не ра�
 [ "$(cat "$temp/package/platform.txt")" = "$platform $arch" ] || die 'неверная платформа пакета'
 [ "$("$temp/package/bin/smartdns-manager" -version)" = "SmartDNS Manager $VERSION" ] || die 'неверная версия или ABI'
 if [ "$action" = check ]; then echo 'Пакет проверен. Службы и настройки не изменялись.'; exit 0; fi
-if [ "$platform" = keenetic ]; then
+if [ "$action" = update ]; then
+ sh "$temp/package/install.sh" --update
+elif [ "$platform" = keenetic ]; then
  sh "$temp/package/install.sh" --lan-ip "$lan"
 else
  sh "$temp/package/install.sh"
