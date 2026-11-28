@@ -153,17 +153,23 @@ DNS, менеджер, управляющие команды и сервер п�
 
 ## Скриншоты
 
-Главная показана в версии 0.6.1 на демонстрационных данных. Остальные скриншоты показывают разделы прежней версии; их оформление может отличаться.
+Панель SmartDNS Manager 0.6.9 на Keenetic.
 
-![Главная 0.6.1 — демонстрационные данные](screenshots/dashboard.png)
+![Обзор](screenshots/dashboard.png)
 
-<details><summary>Источники, серверы, журнал и статистика</summary>
+<details><summary>Остальные разделы панели</summary>
 
 ![Источники](screenshots/sources.png)
-![Подписки и история](screenshots/updates.png)
+
+![DNS-записи](screenshots/dns-records.png)
+
 ![DNS-серверы](screenshots/dns-servers.png)
-![Журнал](screenshots/query-log.png)
-![Статистика](screenshots/statistics.png)
+
+![Журнал DNS-запросов](screenshots/query-log.png)
+
+![Диагностика и статистика](screenshots/diagnostics-statistics.png)
+
+![Настройки](screenshots/settings.png)
 
 </details>
 
